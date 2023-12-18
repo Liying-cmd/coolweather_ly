@@ -1,6 +1,9 @@
 package com.coolweather.android;
 
 import androidx.appcompat.app.AppCompatActivity;
+import androidx.core.view.GravityCompat;
+import androidx.drawerlayout.widget.DrawerLayout;
+import androidx.swiperefreshlayout.widget.SwipeRefreshLayout;
 
 import android.content.SharedPreferences;
 import android.graphics.Color;
@@ -10,6 +13,7 @@ import android.preference.PreferenceManager;
 import android.util.Log;
 import android.view.LayoutInflater;
 import android.view.View;
+import android.widget.Button;
 import android.widget.ImageView;
 import android.widget.LinearLayout;
 import android.widget.ScrollView;
@@ -28,12 +32,22 @@ import org.json.JSONObject;
 import org.w3c.dom.Text;
 
 import java.io.IOException;
+import java.security.SecureRandom;
+import java.util.Random;
 
 import okhttp3.Call;
 import okhttp3.Callback;
 import okhttp3.Response;
 
 public class WeatherActivity extends AppCompatActivity {
+
+//    滑动菜单
+    public DrawerLayout drawerLayout;
+
+    private Button navButton;
+
+//    下拉刷新
+    public SwipeRefreshLayout swipeRefresh;
 
     private ScrollView weatherLayout;
 
@@ -86,27 +100,51 @@ public class WeatherActivity extends AppCompatActivity {
         sportText = (TextView)findViewById(R.id.sport_text);
         //  每日一图控件
         bingPicImg = (ImageView) findViewById(R.id.bing_pic_img);
+//        下拉刷新控件
+        swipeRefresh = (SwipeRefreshLayout) findViewById(R.id.swipe_refresh);
+        swipeRefresh.setColorSchemeResources(R.color.design_default_color_primary);
+//        滑动菜单控件
+        drawerLayout = (DrawerLayout) findViewById(R.id.drawer_layout);
+        navButton = (Button) findViewById(R.id.nav_button);
 
-//        SharedPreferences prefs = PreferenceManager.getDefaultSharedPreferences(this);
-//        String weatherString = prefs.getString("weather", null);
-//        if(weatherString != "1"){
+        SharedPreferences prefs = PreferenceManager.getDefaultSharedPreferences(this);
+        String weatherString = prefs.getString("weather", null);
+        final String weatherId;
+//        if(weatherString != null){
 //            //有缓存直接解析天气数据
 //            Weather weather = Utility.handleWeatherResponse(weatherString);
+//            weatherId = weather.basic.weatherId;
 //            showWeatherInfo(weather);
 //        } else {
             //  无缓存时去服务器查询天气
-            String weatherId = getIntent().getStringExtra("weather_id");
+            weatherId = getIntent().getStringExtra("weather_id");
             weatherLayout.setVisibility(View.INVISIBLE);
             requestWeather(weatherId);
 //        }
 
-//        //每日一图
-//        String bingpic = prefs.getString("bing_pic", null);
-//        if(bingpic != null){
-//            Glide.with(this).load(bingpic).into(bingPicImg);
-//        } else {
+//        下拉刷新检测事件
+        swipeRefresh.setOnRefreshListener(new SwipeRefreshLayout.OnRefreshListener() {
+            @Override
+            public void onRefresh() {
+                requestWeather(weatherId);
+            }
+        });
+
+//        滑动菜单检测事件
+        navButton.setOnClickListener(new View.OnClickListener() {
+            @Override
+            public void onClick(View v) {
+                drawerLayout.openDrawer(GravityCompat.START);
+            }
+        });
+
+        //每日一图
+        String bingpic = prefs.getString("bing_pic", null);
+        if(bingpic != null){
+            Glide.with(this).load(bingpic).into(bingPicImg);
+        } else {
             loadBingPic();
-//        }
+        }
     }
 
 //    根据天气id请求城市天气信息
@@ -118,6 +156,7 @@ public class WeatherActivity extends AppCompatActivity {
                 runOnUiThread(()->{
                     Toast.makeText(WeatherActivity.this, "获取天气信息失败", Toast.LENGTH_SHORT).show();
                 });
+                swipeRefresh.setRefreshing(false);
             }
 
             @Override
@@ -137,7 +176,7 @@ public class WeatherActivity extends AppCompatActivity {
                         } else {
                             Toast.makeText(WeatherActivity.this, "获取天气信息失败", Toast.LENGTH_SHORT).show();
                         }
-
+                        swipeRefresh.setRefreshing(false);
                     }
                 });
             }
@@ -148,7 +187,9 @@ public class WeatherActivity extends AppCompatActivity {
 
 //    加载每日一图
     private void loadBingPic(){
-        String requestBingPic = "https://cn.bing.com/HPImageArchive.aspx?format=js&idx=100&n=1";
+        SecureRandom random = new SecureRandom();
+        int x =  random.nextInt(10);
+        String requestBingPic = "https://cn.bing.com/HPImageArchive.aspx?format=js&idx="+ x +"&n=1";
         HttpUtil.sendOkHttpRequest(requestBingPic, new Callback() {
             @Override
             public void onFailure(@NotNull Call call, @NotNull IOException e) {
